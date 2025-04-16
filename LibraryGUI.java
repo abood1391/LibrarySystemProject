@@ -5,547 +5,568 @@ import entities.Book;
 import entities.User;
 import operations.Library;
 
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
+import javafx.stage.Stage;
+
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 
-public class LibraryGUI extends JFrame {
+public class LibraryGUI extends Application {
+    // Data models
     private Library library;
     private Admin admin;
     private User user;
-    private ArrayList<Book> booksList;  // To keep track of books for the bookshelf
-
-    // Main panels
-    private JPanel mainPanel;
-    private JPanel loginPanel;
-    private JPanel adminPanel;
-    private JPanel userPanel;
-    private JPanel bookshelfPanel;
-
-    // Login components
-    private JButton adminLoginButton;
-    private JButton userLoginButton;
-
-    // Admin components
-    private JTextField adminPasswordField;
-    private JTextField titleField;
-    private JTextField authorField;
-    private JTextField isbnField;
-    private JTextField removeIsbnField;
-
-    // User components
-    private JTable booksTable;
-    private DefaultTableModel tableModel;
-    private JTextField searchIsbnField;
-
-    // Common components
-    private JButton backButton;
-
-    public LibraryGUI() {
+    private ArrayList<Book> booksList;
+    private ObservableList<BookModel> booksData;
+    
+    // Root elements
+    private Stage primaryStage;
+    private BorderPane mainLayout;
+    
+    // Login elements
+    private PasswordField adminPasswordField;
+    
+    // Admin elements
+    private TextField titleField;
+    private TextField authorField;
+    private TextField isbnField;
+    private TextField removeIsbnField;
+    
+    // User elements
+    private TableView<BookModel> booksTable;
+    private TextField searchIsbnField;
+    private TextArea resultArea;
+    
+    @Override
+    public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage;
+        
         // Initialize data
         library = new Library();
         admin = new Admin("admin", "admin");
         user = new User("User");
         booksList = new ArrayList<>();
-
-        // Setup frame
-        setTitle("Library Management System");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(800, 600);
-        setLocationRelativeTo(null);
-
-        // Create panels
-        createMainPanel();
-        createLoginPanel();
-        createAdminPanel();
-        createUserPanel();
-        createBookshelfPanel();
-
-        // Add main panel to frame
-        setContentPane(mainPanel);
-
-        // Show the frame
-        setVisible(true);
+        booksData = FXCollections.observableArrayList();
+        
+        // Set up the main stage
+        primaryStage.setTitle("Library Management System");
+        primaryStage.setMinWidth(800);
+        primaryStage.setMinHeight(600);
+        
+        // Show the login screen
+        showLoginScreen();
+        
+        primaryStage.show();
     }
-
-    private void createMainPanel() {
-        mainPanel = new JPanel(new CardLayout());
+    
+    private void showLoginScreen() {
+        // Create the main layout
+        mainLayout = new BorderPane();
+        
+        // Create header
+        VBox headerBox = new VBox();
+        headerBox.setAlignment(Pos.CENTER);
+        headerBox.setPadding(new Insets(20, 10, 20, 10));
+        headerBox.setStyle("-fx-background-color: #336699;");
+        
+        Text title = new Text("Library Management System");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 28));
+        title.setFill(Color.WHITE);
+        
+        headerBox.getChildren().add(title);
+        mainLayout.setTop(headerBox);
+        
+        // Create buttons panel
+        VBox buttonsPanel = new VBox(20);
+        buttonsPanel.setAlignment(Pos.CENTER);
+        buttonsPanel.setPadding(new Insets(50));
+        
+        Button adminLoginButton = new Button("Admin Login");
+        Button userLoginButton = new Button("Enter as User");
+        Button viewBookshelfButton = new Button("View Bookshelf");
+        Button exitButton = new Button("Exit");
+        
+        adminLoginButton.setPrefWidth(200);
+        userLoginButton.setPrefWidth(200);
+        viewBookshelfButton.setPrefWidth(200);
+        exitButton.setPrefWidth(200);
+        
+        adminLoginButton.setStyle("-fx-font-size: 16px;");
+        userLoginButton.setStyle("-fx-font-size: 16px;");
+        viewBookshelfButton.setStyle("-fx-font-size: 16px;");
+        exitButton.setStyle("-fx-font-size: 16px;");
+        
+        adminLoginButton.setOnAction(e -> showAdminLoginDialog());
+        userLoginButton.setOnAction(e -> showUserScreen());
+        viewBookshelfButton.setOnAction(e -> {
+            updateBookshelf();
+            showBookshelfScreen();
+        });
+        exitButton.setOnAction(e -> Platform.exit());
+        
+        buttonsPanel.getChildren().addAll(adminLoginButton, userLoginButton, viewBookshelfButton, exitButton);
+        
+        // Add to layout
+        mainLayout.setCenter(buttonsPanel);
+        
+        // Set scene
+        Scene scene = new Scene(mainLayout);
+        primaryStage.setScene(scene);
     }
-
-    private void createLoginPanel() {
-        loginPanel = new JPanel();
-        loginPanel.setLayout(new BorderLayout());
-
-        // Header
-        JLabel headerLabel = new JLabel("Library Management System", JLabel.CENTER);
-        headerLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        headerLabel.setBorder(new EmptyBorder(20, 10, 20, 10));
-        loginPanel.add(headerLabel, BorderLayout.NORTH);
-
-        // Buttons panel
-        JPanel buttonsPanel = new JPanel();
-        buttonsPanel.setBorder(new EmptyBorder(40, 10, 10, 10));
-        buttonsPanel.setLayout(new GridLayout(3, 1, 10, 20));
-
-        adminLoginButton = new JButton("Admin Login");
-        userLoginButton = new JButton("Enter as User");
-        JButton viewBookshelfButton = new JButton("View Bookshelf");
-
-        adminLoginButton.setFont(new Font("Arial", Font.PLAIN, 16));
-        userLoginButton.setFont(new Font("Arial", Font.PLAIN, 16));
-        viewBookshelfButton.setFont(new Font("Arial", Font.PLAIN, 16));
-
-        // Add action listeners
-        adminLoginButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                showAdminLogin();
+    
+    private void showAdminLoginDialog() {
+        // Create dialog
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Admin Login");
+        dialog.setHeaderText("Enter Admin Password");
+        
+        // Set buttons
+        ButtonType loginButtonType = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(loginButtonType, ButtonType.CANCEL);
+        
+        // Create password field
+        adminPasswordField = new PasswordField();
+        adminPasswordField.setPromptText("Password");
+        
+        // Layout
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+        grid.add(new Label("Password:"), 0, 0);
+        grid.add(adminPasswordField, 1, 0);
+        
+        dialog.getDialogPane().setContent(grid);
+        
+        // Focus password field by default
+        Platform.runLater(() -> adminPasswordField.requestFocus());
+        
+        // Convert the result
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == loginButtonType) {
+                return adminPasswordField.getText();
+            }
+            return null;
+        });
+        
+        // Show dialog and process result
+        dialog.showAndWait().ifPresent(password -> {
+            if (admin.login(password)) {
+                showAdminScreen();
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Login Failed", "Invalid password!");
             }
         });
-
-        userLoginButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                showUserPanel();
-            }
-        });
-
-        viewBookshelfButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                updateBookshelf();
-                showBookshelfPanel();
-            }
-        });
-
-        buttonsPanel.add(adminLoginButton);
-        buttonsPanel.add(userLoginButton);
-        buttonsPanel.add(viewBookshelfButton);
-
-        // Center the buttons panel
-        JPanel centerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        centerPanel.add(buttonsPanel);
-        loginPanel.add(centerPanel, BorderLayout.CENTER);
-
-        // Exit button
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        JButton exitButton = new JButton("Exit");
-        exitButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                System.exit(0);
-            }
-        });
-        bottomPanel.add(exitButton);
-        loginPanel.add(bottomPanel, BorderLayout.SOUTH);
-
-        // Add to main panel
-        mainPanel.add(loginPanel, "login");
     }
-
-    private void createAdminPanel() {
-        adminPanel = new JPanel();
-        adminPanel.setLayout(new BorderLayout());
-
-        // Header
-        JLabel headerLabel = new JLabel("Admin Panel", JLabel.CENTER);
-        headerLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        headerLabel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        adminPanel.add(headerLabel, BorderLayout.NORTH);
-
-        // Create tabbed pane for admin functions
-        JTabbedPane tabbedPane = new JTabbedPane();
-
-        // Add Book Panel
-        JPanel addBookPanel = new JPanel();
-        addBookPanel.setLayout(new BoxLayout(addBookPanel, BoxLayout.Y_AXIS));
-        addBookPanel.setBorder(new EmptyBorder(20, 40, 20, 40));
-
-        JLabel titleLabel = new JLabel("Title:");
-        titleField = new JTextField(20);
-        JLabel authorLabel = new JLabel("Author:");
-        authorField = new JTextField(20);
-        JLabel isbnLabel = new JLabel("ISBN:");
-        isbnField = new JTextField(20);
-        JButton addButton = new JButton("Add Book");
-
-        addButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                addBook();
-            }
+    
+    private void showAdminScreen() {
+        // Create main layout
+        mainLayout = new BorderPane();
+        
+        // Create header
+        VBox headerBox = new VBox();
+        headerBox.setAlignment(Pos.CENTER);
+        headerBox.setPadding(new Insets(20, 10, 20, 10));
+        headerBox.setStyle("-fx-background-color: #336699;");
+        
+        Text title = new Text("Admin Panel");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 24));
+        title.setFill(Color.WHITE);
+        
+        headerBox.getChildren().add(title);
+        mainLayout.setTop(headerBox);
+        
+        // Create tab pane for admin functions
+        TabPane tabPane = new TabPane();
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        
+        // Add Book Tab
+        Tab addBookTab = new Tab("Add Book");
+        VBox addBookPane = new VBox(15);
+        addBookPane.setPadding(new Insets(20));
+        addBookPane.setAlignment(Pos.TOP_CENTER);
+        
+        GridPane addBookGrid = new GridPane();
+        addBookGrid.setHgap(10);
+        addBookGrid.setVgap(10);
+        addBookGrid.setAlignment(Pos.CENTER);
+        
+        Label titleLabel = new Label("Title:");
+        titleField = new TextField();
+        titleField.setPromptText("Enter book title");
+        
+        Label authorLabel = new Label("Author:");
+        authorField = new TextField();
+        authorField.setPromptText("Enter author name");
+        
+        Label isbnLabel = new Label("ISBN:");
+        isbnField = new TextField();
+        isbnField.setPromptText("Enter ISBN");
+        
+        Button addButton = new Button("Add Book");
+        addButton.setOnAction(e -> addBook());
+        
+        addBookGrid.add(titleLabel, 0, 0);
+        addBookGrid.add(titleField, 1, 0);
+        addBookGrid.add(authorLabel, 0, 1);
+        addBookGrid.add(authorField, 1, 1);
+        addBookGrid.add(isbnLabel, 0, 2);
+        addBookGrid.add(isbnField, 1, 2);
+        
+        addBookPane.getChildren().addAll(addBookGrid, addButton);
+        addBookTab.setContent(addBookPane);
+        
+        // Remove Book Tab
+        Tab removeBookTab = new Tab("Remove Book");
+        VBox removeBookPane = new VBox(15);
+        removeBookPane.setPadding(new Insets(20));
+        removeBookPane.setAlignment(Pos.TOP_CENTER);
+        
+        GridPane removeBookGrid = new GridPane();
+        removeBookGrid.setHgap(10);
+        removeBookGrid.setVgap(10);
+        removeBookGrid.setAlignment(Pos.CENTER);
+        
+        Label removeLabel = new Label("ISBN:");
+        removeIsbnField = new TextField();
+        removeIsbnField.setPromptText("Enter ISBN to remove");
+        
+        Button removeButton = new Button("Remove Book");
+        removeButton.setOnAction(e -> removeBook());
+        
+        removeBookGrid.add(removeLabel, 0, 0);
+        removeBookGrid.add(removeIsbnField, 1, 0);
+        
+        removeBookPane.getChildren().addAll(removeBookGrid, removeButton);
+        removeBookTab.setContent(removeBookPane);
+        
+        // Add tabs to pane
+        tabPane.getTabs().addAll(addBookTab, removeBookTab);
+        mainLayout.setCenter(tabPane);
+        
+        // Bottom buttons
+        HBox bottomBox = new HBox(20);
+        bottomBox.setAlignment(Pos.CENTER);
+        bottomBox.setPadding(new Insets(15));
+        
+        Button viewBookshelfButton = new Button("View Bookshelf");
+        Button logoutButton = new Button("Logout");
+        
+        viewBookshelfButton.setOnAction(e -> {
+            updateBookshelf();
+            showBookshelfScreen();
         });
-
-        // Add components with some spacing
-        addBookPanel.add(titleLabel);
-        addBookPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        addBookPanel.add(titleField);
-        addBookPanel.add(Box.createRigidArea(new Dimension(0, 15)));
-        addBookPanel.add(authorLabel);
-        addBookPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        addBookPanel.add(authorField);
-        addBookPanel.add(Box.createRigidArea(new Dimension(0, 15)));
-        addBookPanel.add(isbnLabel);
-        addBookPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        addBookPanel.add(isbnField);
-        addBookPanel.add(Box.createRigidArea(new Dimension(0, 20)));
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        buttonPanel.add(addButton);
-        addBookPanel.add(buttonPanel);
-
-        // Remove Book Panel
-        JPanel removeBookPanel = new JPanel();
-        removeBookPanel.setLayout(new BoxLayout(removeBookPanel, BoxLayout.Y_AXIS));
-        removeBookPanel.setBorder(new EmptyBorder(20, 40, 20, 40));
-
-        JLabel removeLabel = new JLabel("Enter ISBN to remove:");
-        removeIsbnField = new JTextField(20);
-        JButton removeButton = new JButton("Remove Book");
-
-        removeButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                removeBook();
-            }
-        });
-
-        removeBookPanel.add(removeLabel);
-        removeBookPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        removeBookPanel.add(removeIsbnField);
-        removeBookPanel.add(Box.createRigidArea(new Dimension(0, 20)));
-
-        JPanel removeButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        removeButtonPanel.add(removeButton);
-        removeBookPanel.add(removeButtonPanel);
-
-        // Add tabs
-        tabbedPane.addTab("Add Book", addBookPanel);
-        tabbedPane.addTab("Remove Book", removeBookPanel);
-
-        adminPanel.add(tabbedPane, BorderLayout.CENTER);
-
-        // Bottom panel with buttons
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
-
-        JButton viewBookshelfButton = new JButton("View Bookshelf");
-        viewBookshelfButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                updateBookshelf();
-                showBookshelfPanel();
-            }
-        });
-
-        JButton logoutButton = new JButton("Logout");
-        logoutButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                showLoginPanel();
-            }
-        });
-
-        bottomPanel.add(viewBookshelfButton);
-        bottomPanel.add(logoutButton);
-        adminPanel.add(bottomPanel, BorderLayout.SOUTH);
-
-        // Add to main panel
-        mainPanel.add(adminPanel, "admin");
+        logoutButton.setOnAction(e -> showLoginScreen());
+        
+        bottomBox.getChildren().addAll(viewBookshelfButton, logoutButton);
+        mainLayout.setBottom(bottomBox);
+        
+        // Set scene
+        Scene scene = new Scene(mainLayout);
+        primaryStage.setScene(scene);
     }
-
-    private void createUserPanel() {
-        userPanel = new JPanel();
-        userPanel.setLayout(new BorderLayout());
-
-        // Header
-        JLabel headerLabel = new JLabel("User Panel", JLabel.CENTER);
-        headerLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        headerLabel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        userPanel.add(headerLabel, BorderLayout.NORTH);
-
-        // Create tabbed pane for user functions
-        JTabbedPane tabbedPane = new JTabbedPane();
-
-        // List Books Panel
-        JPanel listBooksPanel = new JPanel(new BorderLayout());
-        listBooksPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-
-        // Create table model
-        tableModel = new DefaultTableModel();
-        tableModel.addColumn("Title");
-        tableModel.addColumn("Author");
-        tableModel.addColumn("ISBN");
-
-        booksTable = new JTable(tableModel);
-        JScrollPane scrollPane = new JScrollPane(booksTable);
-
-        JButton refreshButton = new JButton("Refresh Book List");
-        refreshButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                refreshBookList();
-            }
-        });
-
-        listBooksPanel.add(scrollPane, BorderLayout.CENTER);
-
-        JPanel refreshPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        refreshPanel.add(refreshButton);
-        listBooksPanel.add(refreshPanel, BorderLayout.SOUTH);
-
-        // Search Book Panel
-        JPanel searchBookPanel = new JPanel();
-        searchBookPanel.setLayout(new BoxLayout(searchBookPanel, BoxLayout.Y_AXIS));
-        searchBookPanel.setBorder(new EmptyBorder(20, 40, 20, 40));
-
-        JLabel searchLabel = new JLabel("Enter ISBN to search:");
-        searchIsbnField = new JTextField(20);
-        JButton searchButton = new JButton("Search Book");
-        JTextArea resultArea = new JTextArea(5, 20);
+    
+    private void showUserScreen() {
+        // Create main layout
+        mainLayout = new BorderPane();
+        
+        // Create header
+        VBox headerBox = new VBox();
+        headerBox.setAlignment(Pos.CENTER);
+        headerBox.setPadding(new Insets(20, 10, 20, 10));
+        headerBox.setStyle("-fx-background-color: #336699;");
+        
+        Text title = new Text("User Panel");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 24));
+        title.setFill(Color.WHITE);
+        
+        headerBox.getChildren().add(title);
+        mainLayout.setTop(headerBox);
+        
+        // Create tab pane for user functions
+        TabPane tabPane = new TabPane();
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        
+        // List Books Tab
+        Tab listBooksTab = new Tab("List Books");
+        VBox listBooksPane = new VBox(15);
+        listBooksPane.setPadding(new Insets(20));
+        
+        // Create table
+        booksTable = new TableView<>();
+        booksTable.setPlaceholder(new Label("No books available"));
+        
+        TableColumn<BookModel, String> titleCol = new TableColumn<>("Title");
+        titleCol.setCellValueFactory(new PropertyValueFactory<>("title"));
+        titleCol.setPrefWidth(200);
+        
+        TableColumn<BookModel, String> authorCol = new TableColumn<>("Author");
+        authorCol.setCellValueFactory(new PropertyValueFactory<>("author"));
+        authorCol.setPrefWidth(150);
+        
+        TableColumn<BookModel, String> isbnCol = new TableColumn<>("ISBN");
+        isbnCol.setCellValueFactory(new PropertyValueFactory<>("isbn"));
+        isbnCol.setPrefWidth(100);
+        
+        booksTable.getColumns().addAll(titleCol, authorCol, isbnCol);
+        booksTable.setItems(booksData);
+        
+        Button refreshButton = new Button("Refresh Book List");
+        refreshButton.setOnAction(e -> refreshBookList());
+        
+        listBooksPane.getChildren().addAll(booksTable, refreshButton);
+        listBooksPane.setVgrow(booksTable, Priority.ALWAYS);
+        listBooksTab.setContent(listBooksPane);
+        
+        // Search Book Tab
+        Tab searchBookTab = new Tab("Search Book");
+        VBox searchBookPane = new VBox(15);
+        searchBookPane.setPadding(new Insets(20));
+        searchBookPane.setAlignment(Pos.TOP_CENTER);
+        
+        GridPane searchBookGrid = new GridPane();
+        searchBookGrid.setHgap(10);
+        searchBookGrid.setVgap(10);
+        searchBookGrid.setAlignment(Pos.CENTER);
+        
+        Label searchLabel = new Label("ISBN:");
+        searchIsbnField = new TextField();
+        searchIsbnField.setPromptText("Enter ISBN to search");
+        
+        Button searchButton = new Button("Search Book");
+        resultArea = new TextArea();
         resultArea.setEditable(false);
-
-        searchButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String isbn = searchIsbnField.getText().trim();
-                if (!isbn.isEmpty()) {
-                    // Create a custom class to capture output
-                    CustomOutputStream outputStream = new CustomOutputStream();
-                    System.setOut(new java.io.PrintStream(outputStream));
-
-                    library.searchBook(isbn);
-
-                    // Restore standard output
-                    System.setOut(System.out);
-
-                    resultArea.setText(outputStream.getOutput());
-                }
+        resultArea.setPrefRowCount(5);
+        
+        searchButton.setOnAction(e -> {
+            String isbn = searchIsbnField.getText().trim();
+            if (!isbn.isEmpty()) {
+                // Create a custom output stream to capture System.out
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                PrintStream customPrintStream = new PrintStream(outputStream);
+                PrintStream oldOut = System.out;
+                System.setOut(customPrintStream);
+                
+                library.searchBook(isbn);
+                
+                // Restore standard output
+                System.setOut(oldOut);
+                
+                resultArea.setText(outputStream.toString());
             }
         });
-
-        searchBookPanel.add(searchLabel);
-        searchBookPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        searchBookPanel.add(searchIsbnField);
-        searchBookPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-
-        JPanel searchButtonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        searchButtonPanel.add(searchButton);
-        searchBookPanel.add(searchButtonPanel);
-        searchBookPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-
-        JScrollPane resultScrollPane = new JScrollPane(resultArea);
-        searchBookPanel.add(new JLabel("Search Result:"));
-        searchBookPanel.add(Box.createRigidArea(new Dimension(0, 5)));
-        searchBookPanel.add(resultScrollPane);
-
-        // Add tabs
-        tabbedPane.addTab("List Books", listBooksPanel);
-        tabbedPane.addTab("Search Book", searchBookPanel);
-
-        userPanel.add(tabbedPane, BorderLayout.CENTER);
-
-        // Bottom panel with buttons
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
-
-        JButton viewBookshelfButton = new JButton("View Bookshelf");
-        viewBookshelfButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                updateBookshelf();
-                showBookshelfPanel();
-            }
+        
+        searchBookGrid.add(searchLabel, 0, 0);
+        searchBookGrid.add(searchIsbnField, 1, 0);
+        
+        searchBookPane.getChildren().addAll(searchBookGrid, searchButton, new Label("Search Result:"), resultArea);
+        searchBookTab.setContent(searchBookPane);
+        
+        // Add tabs to pane
+        tabPane.getTabs().addAll(listBooksTab, searchBookTab);
+        
+        mainLayout.setCenter(tabPane);
+        
+        // Bottom buttons
+        HBox bottomBox = new HBox(20);
+        bottomBox.setAlignment(Pos.CENTER);
+        bottomBox.setPadding(new Insets(15));
+        
+        Button viewBookshelfButton = new Button("View Bookshelf");
+        Button backButton = new Button("Back to Main Menu");
+        
+        viewBookshelfButton.setOnAction(e -> {
+            updateBookshelf();
+            showBookshelfScreen();
         });
-
-        JButton backButtonUser = new JButton("Back to Main Menu");
-        backButtonUser.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                showLoginPanel();
-            }
-        });
-
-        bottomPanel.add(viewBookshelfButton);
-        bottomPanel.add(backButtonUser);
-        userPanel.add(bottomPanel, BorderLayout.SOUTH);
-
-        // Add to main panel
-        mainPanel.add(userPanel, "user");
+        backButton.setOnAction(e -> showLoginScreen());
+        
+        bottomBox.getChildren().addAll(viewBookshelfButton, backButton);
+        mainLayout.setBottom(bottomBox);
+        
+        // Refresh book list
+        refreshBookList();
+        
+        // Set scene
+        Scene scene = new Scene(mainLayout);
+        primaryStage.setScene(scene);
     }
-
-    private void createBookshelfPanel() {
-        bookshelfPanel = new JPanel(new BorderLayout());
-
-        // Header
-        JLabel headerLabel = new JLabel("Virtual Bookshelf", JLabel.CENTER);
-        headerLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        headerLabel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        bookshelfPanel.add(headerLabel, BorderLayout.NORTH);
-
-        // Book shelf container (will be populated dynamically)
-        JPanel shelfContainer = new JPanel();
-        shelfContainer.setLayout(new BoxLayout(shelfContainer, BoxLayout.Y_AXIS));
-
-        // Placeholder text
-        JLabel placeholderLabel = new JLabel("Loading bookshelf...", JLabel.CENTER);
-        placeholderLabel.setFont(new Font("Arial", Font.ITALIC, 16));
-        shelfContainer.add(placeholderLabel);
-
-        JScrollPane scrollPane = new JScrollPane(shelfContainer);
-        bookshelfPanel.add(scrollPane, BorderLayout.CENTER);
-
-        // Back button
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        JButton backButtonShelf = new JButton("Back");
-        backButtonShelf.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // Go back to previous screen
-                CardLayout cl = (CardLayout) mainPanel.getLayout();
-                cl.previous(mainPanel);
-            }
-        });
-        bottomPanel.add(backButtonShelf);
-        bookshelfPanel.add(bottomPanel, BorderLayout.SOUTH);
-
-        // Add to main panel
-        mainPanel.add(bookshelfPanel, "bookshelf");
-    }
-
-    private void updateBookshelf() {
-        // Get the container from the scroll pane
-        JScrollPane scrollPane = (JScrollPane) bookshelfPanel.getComponent(1);
-        JViewport viewport = scrollPane.getViewport();
-        JPanel shelfContainer = new JPanel();
-        shelfContainer.setLayout(new BoxLayout(shelfContainer, BoxLayout.Y_AXIS));
-
-        // Create the bookshelf
-        refreshBookData();
-
+    
+    private void showBookshelfScreen() {
+        // Create main layout
+        mainLayout = new BorderPane();
+        
+        // Create header
+        VBox headerBox = new VBox();
+        headerBox.setAlignment(Pos.CENTER);
+        headerBox.setPadding(new Insets(20, 10, 20, 10));
+        headerBox.setStyle("-fx-background-color: #336699;");
+        
+        Text title = new Text("Virtual Bookshelf");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 24));
+        title.setFill(Color.WHITE);
+        
+        headerBox.getChildren().add(title);
+        mainLayout.setTop(headerBox);
+        
+        // Create bookshelf content
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        
+        VBox shelfContainer = new VBox(20);
+        shelfContainer.setPadding(new Insets(20));
+        shelfContainer.setAlignment(Pos.TOP_CENTER);
+        
         if (booksList.isEmpty()) {
-            JLabel emptyLabel = new JLabel("The bookshelf is empty!", JLabel.CENTER);
-            emptyLabel.setFont(new Font("Arial", Font.ITALIC, 16));
-            emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-            shelfContainer.add(Box.createVerticalStrut(50));
-            shelfContainer.add(emptyLabel);
+            Label emptyLabel = new Label("The bookshelf is empty!");
+            emptyLabel.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+            shelfContainer.getChildren().add(emptyLabel);
         } else {
             // Create shelves (rows of books)
             int booksPerShelf = 4;
             int totalShelves = (int) Math.ceil((double) booksList.size() / booksPerShelf);
-
+            
             for (int shelfIndex = 0; shelfIndex < totalShelves; shelfIndex++) {
                 // Add a shelf (wooden panel)
-                JPanel shelf = createShelf();
-                shelfContainer.add(shelf);
-
+                Region shelf = new Region();
+                shelf.setPrefHeight(20);
+                shelf.setMaxWidth(Double.MAX_VALUE);
+                shelf.setStyle("-fx-background-color: #8B4513; -fx-border-color: #5D2906; -fx-border-width: 2px;");
+                shelfContainer.getChildren().add(shelf);
+                
                 // Add books to this shelf
-                JPanel booksRow = new JPanel(new GridLayout(1, booksPerShelf, 10, 0));
-                booksRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
-                booksRow.setBackground(new Color(245, 245, 245));
-
+                HBox booksRow = new HBox(10);
+                booksRow.setPrefHeight(180);
+                booksRow.setAlignment(Pos.BOTTOM_CENTER);
+                
                 int startBookIndex = shelfIndex * booksPerShelf;
                 int endBookIndex = Math.min((shelfIndex + 1) * booksPerShelf, booksList.size());
-
+                
                 for (int i = startBookIndex; i < endBookIndex; i++) {
                     Book book = booksList.get(i);
-                    JPanel bookPanel = createBookPanel(book);
-                    booksRow.add(bookPanel);
+                    VBox bookBox = createBookBox(book);
+                    booksRow.getChildren().add(bookBox);
                 }
-
-                // Fill remaining slots with empty spaces if needed
-                for (int i = endBookIndex - startBookIndex; i < booksPerShelf; i++) {
-                    JPanel emptySlot = new JPanel();
-                    emptySlot.setBackground(new Color(245, 245, 245));
-                    booksRow.add(emptySlot);
-                }
-
-                shelfContainer.add(booksRow);
+                
+                shelfContainer.getChildren().add(booksRow);
             }
         }
-
-        viewport.setView(shelfContainer);
+        
+        scrollPane.setContent(shelfContainer);
+        mainLayout.setCenter(scrollPane);
+        
+        // Bottom button
+        HBox bottomBox = new HBox(20);
+        bottomBox.setAlignment(Pos.CENTER);
+        bottomBox.setPadding(new Insets(15));
+        
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> primaryStage.setScene(primaryStage.getScene()));
+        
+        bottomBox.getChildren().add(backButton);
+        mainLayout.setBottom(bottomBox);
+        
+        // Set scene
+        Scene bookshelfScene = new Scene(mainLayout);
+        primaryStage.setScene(bookshelfScene);
     }
-
-    private JPanel createShelf() {
-        JPanel shelfPanel = new JPanel();
-        shelfPanel.setBackground(new Color(139, 69, 19)); // Brown color for wooden shelf
-        shelfPanel.setPreferredSize(new Dimension(100, 20));
-        shelfPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-        shelfPanel.setBorder(BorderFactory.createBevelBorder(1));
-        return shelfPanel;
-    }
-
-    private JPanel createBookPanel(Book book) {
-        JPanel bookPanel = new JPanel();
-        bookPanel.setLayout(new BorderLayout());
-        bookPanel.setBackground(getRandomBookColor());
-        bookPanel.setBorder(new LineBorder(Color.BLACK, 1));
-
-        // Book title on the spine
-        JLabel titleLabel = new JLabel("<html><center>" + book.toString().split("Title=")[1].split(",")[0] + "</center></html>", JLabel.CENTER);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 10));
-        bookPanel.add(titleLabel, BorderLayout.CENTER);
-
-        // Add tooltip with full book info
-        bookPanel.setToolTipText(book.toString());
-
-        // Add click listener to show book details
-        bookPanel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                JOptionPane.showMessageDialog(bookshelfPanel, book.toString(), "Book Details", JOptionPane.INFORMATION_MESSAGE);
-            }
-        });
-
-        return bookPanel;
-    }
-
-    private Color getRandomBookColor() {
-        Color[] bookColors = {
-                new Color(220, 20, 60),  // Crimson
-                new Color(0, 128, 128),  // Teal
-                new Color(70, 130, 180), // Steel Blue
-                new Color(75, 0, 130),   // Indigo
-                new Color(0, 100, 0),    // Dark Green
-                new Color(184, 134, 11), // Dark Goldenrod
-                new Color(139, 0, 139),  // Dark Magenta
-                new Color(85, 107, 47)   // Dark Olive Green
+    
+    private VBox createBookBox(Book book) {
+        // Extract book title
+        String bookStr = book.toString();
+        String title = bookStr.substring(bookStr.indexOf("Title=") + 6, bookStr.indexOf(", Author="));
+        
+        // Create book container
+        VBox bookBox = new VBox();
+        bookBox.setPrefWidth(100);
+        bookBox.setPrefHeight(150);
+        bookBox.setMaxHeight(150);
+        
+        // Random color for book
+        String[] colors = {
+            "#DC143C", // Crimson
+            "#008080", // Teal
+            "#4682B4", // Steel Blue
+            "#4B0082", // Indigo
+            "#006400", // Dark Green
+            "#B8860B", // Dark Goldenrod
+            "#8B008B", // Dark Magenta
+            "#556B2F"  // Dark Olive Green
         };
-
-        return bookColors[(int)(Math.random() * bookColors.length)];
+        String randomColor = colors[(int)(Math.random() * colors.length)];
+        
+        bookBox.setStyle("-fx-background-color: " + randomColor + "; " +
+                        "-fx-border-color: black; -fx-border-width: 1px;");
+        
+        // Book title on spine
+        Text titleText = new Text(title);
+        titleText.setFill(Color.WHITE);
+        titleText.setFont(Font.font("Arial", FontWeight.BOLD, 10));
+        titleText.setWrappingWidth(90);
+        titleText.setTextAlignment(TextAlignment.CENTER);
+        
+        VBox textBox = new VBox(titleText);
+        textBox.setAlignment(Pos.CENTER);
+        textBox.setPrefHeight(150);
+        
+        bookBox.getChildren().add(textBox);
+        
+        // Tooltip with book info
+        Tooltip tooltip = new Tooltip(bookStr);
+        Tooltip.install(bookBox, tooltip);
+        
+        // Click event to show book details
+        bookBox.setOnMouseClicked(event -> showAlert(Alert.AlertType.INFORMATION, "Book Details", bookStr));
+        
+        return bookBox;
     }
-
+    
+    private void updateBookshelf() {
+        refreshBookData();
+    }
+    
     private void refreshBookData() {
         booksList.clear();
-
+        
         // Create a custom output stream to capture System.out
-        CustomOutputStream outputStream = new CustomOutputStream();
-        System.setOut(new java.io.PrintStream(outputStream));
-
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PrintStream customPrintStream = new PrintStream(outputStream);
+        PrintStream oldOut = System.out;
+        System.setOut(customPrintStream);
+        
         library.listBooks();
-
+        
         // Restore standard output
-        System.setOut(System.out);
-
-        String output = outputStream.getOutput();
-
+        System.setOut(oldOut);
+        
+        String output = outputStream.toString();
+        
         // Parse the output and add to booksList
         if (!output.contains("No books available.")) {
             String[] lines = output.split("\n");
             for (int i = 1; i < lines.length; i++) { // Skip the first line which is "Books List:"
                 String line = lines[i];
-                // Parse the book details - assuming format: Book [Title=title, Author=author, ISBN=isbn]
                 try {
+                    // Parse the book details - assuming format: Book [Title=title, Author=author, ISBN=isbn]
                     String title = line.substring(line.indexOf("Title=") + 6, line.indexOf(", Author="));
                     String author = line.substring(line.indexOf("Author=") + 7, line.indexOf(", ISBN="));
                     String isbn = line.substring(line.indexOf("ISBN=") + 5, line.indexOf("]"));
-
+                    
                     Book book = new Book(title, author, isbn);
                     booksList.add(book);
                 } catch (Exception e) {
@@ -554,153 +575,133 @@ public class LibraryGUI extends JFrame {
             }
         }
     }
-
-    private void showAdminLogin() {
-        JPanel loginDialogPanel = new JPanel(new GridLayout(3, 1, 10, 10));
-        loginDialogPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
-
-        JLabel passwordLabel = new JLabel("Enter Admin Password:");
-        adminPasswordField = new JPasswordField(15);
-
-        loginDialogPanel.add(passwordLabel);
-        loginDialogPanel.add(adminPasswordField);
-
-        int result = JOptionPane.showConfirmDialog(this, loginDialogPanel,
-                "Admin Login", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
-
-        if (result == JOptionPane.OK_OPTION) {
-            String password = adminPasswordField.getText();
-            if (admin.login(password)) {
-                showAdminPanel();
-            } else {
-                JOptionPane.showMessageDialog(this, "Invalid password!", "Login Failed", JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
-
-    private void showLoginPanel() {
-        CardLayout cl = (CardLayout) mainPanel.getLayout();
-        cl.show(mainPanel, "login");
-    }
-
-    private void showAdminPanel() {
-        CardLayout cl = (CardLayout) mainPanel.getLayout();
-        cl.show(mainPanel, "admin");
-    }
-
-    private void showUserPanel() {
-        refreshBookList();
-        CardLayout cl = (CardLayout) mainPanel.getLayout();
-        cl.show(mainPanel, "user");
-    }
-
-    private void showBookshelfPanel() {
-        CardLayout cl = (CardLayout) mainPanel.getLayout();
-        cl.show(mainPanel, "bookshelf");
-    }
-
-    private void addBook() {
-        String title = titleField.getText().trim();
-        String author = authorField.getText().trim();
-        String isbn = isbnField.getText().trim();
-
-        if (title.isEmpty() || author.isEmpty() || isbn.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "All fields are required!", "Input Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        Book book = new Book(title, author, isbn);
-
-        // Create a custom output stream to capture System.out
-        CustomOutputStream outputStream = new CustomOutputStream();
-        System.setOut(new java.io.PrintStream(outputStream));
-
-        library.addBook(book);
-
-        // Restore standard output
-        System.setOut(System.out);
-
-        JOptionPane.showMessageDialog(this, outputStream.getOutput(), "Success", JOptionPane.INFORMATION_MESSAGE);
-
-        // Clear fields
-        titleField.setText("");
-        authorField.setText("");
-        isbnField.setText("");
-    }
-
-    private void removeBook() {
-        String isbn = removeIsbnField.getText().trim();
-
-        if (isbn.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "ISBN is required!", "Input Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        // Create a custom output stream to capture System.out
-        CustomOutputStream outputStream = new CustomOutputStream();
-        System.setOut(new java.io.PrintStream(outputStream));
-
-        library.removeBook(isbn);
-
-        // Restore standard output
-        System.setOut(System.out);
-
-        JOptionPane.showMessageDialog(this, outputStream.getOutput(), "Book Removal", JOptionPane.INFORMATION_MESSAGE);
-
-        // Clear field
-        removeIsbnField.setText("");
-    }
-
+    
     private void refreshBookList() {
         // Clear previous data
-        tableModel.setRowCount(0);
-
+        booksData.clear();
+        
         // Create a custom output stream to capture System.out
-        CustomOutputStream outputStream = new CustomOutputStream();
-        System.setOut(new java.io.PrintStream(outputStream));
-
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PrintStream customPrintStream = new PrintStream(outputStream);
+        PrintStream oldOut = System.out;
+        System.setOut(customPrintStream);
+        
         library.listBooks();
-
+        
         // Restore standard output
-        System.setOut(System.out);
-
-        String output = outputStream.getOutput();
-
+        System.setOut(oldOut);
+        
+        String output = outputStream.toString();
+        
         // Parse the output and add to table
-        // This is a simple parsing that assumes the format from the Library class
         if (!output.contains("No books available.")) {
             String[] lines = output.split("\n");
             for (int i = 1; i < lines.length; i++) { // Skip the first line which is "Books List:"
                 String line = lines[i];
-                // Parse the book details - assuming format: Book [Title=title, Author=author, ISBN=isbn]
-                String title = line.substring(line.indexOf("Title=") + 6, line.indexOf(", Author="));
-                String author = line.substring(line.indexOf("Author=") + 7, line.indexOf(", ISBN="));
-                String isbn = line.substring(line.indexOf("ISBN=") + 5, line.indexOf("]"));
-
-                tableModel.addRow(new Object[]{title, author, isbn});
+                try {
+                    // Parse the book details - assuming format: Book [Title=title, Author=author, ISBN=isbn]
+                    String title = line.substring(line.indexOf("Title=") + 6, line.indexOf(", Author="));
+                    String author = line.substring(line.indexOf("Author=") + 7, line.indexOf(", ISBN="));
+                    String isbn = line.substring(line.indexOf("ISBN=") + 5, line.indexOf("]"));
+                    
+                    booksData.add(new BookModel(title, author, isbn));
+                } catch (Exception e) {
+                    System.err.println("Error parsing book: " + line);
+                }
             }
         }
     }
-
-    // Custom output stream to capture System.out
-    private class CustomOutputStream extends java.io.ByteArrayOutputStream {
-        public String getOutput() {
-            return toString();
+    
+    private void addBook() {
+        String title = titleField.getText().trim();
+        String author = authorField.getText().trim();
+        String isbn = isbnField.getText().trim();
+        
+        if (title.isEmpty() || author.isEmpty() || isbn.isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Input Error", "All fields are required!");
+            return;
+        }
+        
+        Book book = new Book(title, author, isbn);
+        
+        // Capture console output
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PrintStream customPrintStream = new PrintStream(outputStream);
+        PrintStream oldOut = System.out;
+        System.setOut(customPrintStream);
+        
+        library.addBook(book);
+        
+        // Restore standard output
+        System.setOut(oldOut);
+        
+        showAlert(Alert.AlertType.INFORMATION, "Success", outputStream.toString());
+        
+        // Clear fields
+        titleField.clear();
+        authorField.clear();
+        isbnField.clear();
+    }
+    
+    private void removeBook() {
+        String isbn = removeIsbnField.getText().trim();
+        
+        if (isbn.isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Input Error", "ISBN is required!");
+            return;
+        }
+        
+        // Capture console output
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        PrintStream customPrintStream = new PrintStream(outputStream);
+        PrintStream oldOut = System.out;
+        System.setOut(customPrintStream);
+        
+        library.removeBook(isbn);
+        
+        // Restore standard output
+        System.setOut(oldOut);
+        
+        showAlert(Alert.AlertType.INFORMATION, "Book Removal", outputStream.toString());
+        
+        // Clear field
+        removeIsbnField.clear();
+    }
+    
+    private void showAlert(Alert.AlertType alertType, String title, String message) {
+        Alert alert = new Alert(alertType);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    // Model class for TableView
+    public static class BookModel {
+        private String title;
+        private String author;
+        private String isbn;
+        
+        public BookModel(String title, String author, String isbn) {
+            this.title = title;
+            this.author = author;
+            this.isbn = isbn;
+        }
+        
+        public String getTitle() {
+            return title;
+        }
+        
+        public String getAuthor() {
+            return author;
+        }
+        
+        public String getIsbn() {
+            return isbn;
         }
     }
-
+    
     public static void main(String[] args) {
-        // Set look and feel to system default
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                new LibraryGUI();
-            }
-        });
+        launch(args);
     }
 }
